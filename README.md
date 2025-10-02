@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini ERP Completo</title>
+<style>
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f5f6fa;
+  margin: 0; padding: 20px;
+}
+h1,h2,h3 { color: #2f3640; }
+.container { max-width: 1200px; margin: auto; }
+.section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+input, select, button { margin: 5px 0; padding: 8px; font-size: 14px; }
+button { cursor: pointer; background: #0984e3; color: #fff; border: none; border-radius: 5px; }
+button:hover { background: #74b9ff; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+th, td { border: 1px solid #dcdde1; padding: 8px; text-align: center; }
+th { background: #f1f2f6; }
+.alert { color: red; font-weight: bold; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Mini ERP Completo</h1>
+
+<!-- CLIENTES -->
+<div class="section">
+<h2>Clientes</h2>
+<input type="text" id="erpClientName" placeholder="Nombre Cliente">
+<input type="email" id="erpClientEmail" placeholder="Email Cliente">
+<input type="text" id="erpClientRUC" placeholder="RUC/CÉDULA">
+<input type="text" id="erpClientAddress" placeholder="Dirección">
+<button onclick="createClientERP()">Crear Cliente</button>
+
+<h3>Lista de Clientes</h3>
+<table id="clientsTable">
+<tr><th>ID</th><th>Nombre</th><th>Email</th><th>RUC</th><th>Dirección</th><th>Acciones</th></tr>
+</table>
+</div>
+
+<!-- PRODUCTOS -->
+<div class="section">
+<h2>Productos</h2>
+<input type="text" id="erpProductName" placeholder="Nombre Producto">
+<input type="number" id="erpProductPrice" placeholder="Precio">
+<input type="number" id="erpProductStock" placeholder="Stock">
+<button onclick="createProductERP()">Crear Producto</button>
+
+<h3>Lista de Productos</h3>
+<table id="productsTable">
+<tr><th>ID</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Acciones</th></tr>
+</table>
+</div>
+
+<!-- CARRITO -->
+<div class="section">
+<h2>Carrito / Cotizaciones</h2>
+<select id="cartClientId"></select>
+<select id="cartProductId"></select>
+<input type="number" id="cartQuantity" placeholder="Cantidad">
+<button onclick="addToCart()">Agregar al Carrito</button>
+
+<h3>Carrito</h3>
+<table id="cartTable">
+<tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th><th>Acciones</th></tr>
+</table>
+<p>Total: $<span id="cartTotal">0.00</span></p>
+<button onclick="createCartQuote()">Crear Cotización</button>
+
+<h3>Cotizaciones</h3>
+<table id="quotesTable">
+<tr><th>ID</th><th>Cliente</th><th>Total</th><th>Acciones</th></tr>
+</table>
+</div>
+
+<!-- FACTURAS -->
+<div class="section">
+<h2>Facturas</h2>
+<table id="invoicesTable">
+<tr><th>ID</th><th>Cliente</th><th>Total</th><th>Acciones</th></tr>
+</table>
+</div>
+
+<!-- jsPDF para PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+// === VARIABLES GLOBALES ===
+let clients = JSON.parse(localStorage.getItem('clients'))||[];
+let products = JSON.parse(localStorage.getItem('products'))||[];
+let quotes = JSON.parse(localStorage.getItem('quotes'))||[];
+let invoices = JSON.parse(localStorage.getItem('invoices'))||[];
+let cartItems = [];
+let nextClientId = parseInt(localStorage.getItem('nextClientId'))||1;
+let nextProductId = parseInt(localStorage.getItem('nextProductId'))||1;
+let nextQuoteId = parseInt(localStorage.getItem('nextQuoteId'))||1;
+let nextInvoiceId = parseInt(localStorage.getItem('nextInvoiceId'))||1;
+const IVA_RATE = 0.15;
+
+function saveData(){
+  localStorage.setItem('clients', JSON.stringify(clients));
+  localStorage.setItem('products', JSON.stringify(products));
+  localStorage.setItem('quotes', JSON.stringify(quotes));
+  localStorage.setItem('invoices', JSON.stringify(invoices));
+  localStorage.setItem('nextClientId', nextClientId);
+  localStorage.setItem('nextProductId', nextProductId);
+  localStorage.setItem('nextQuoteId', nextQuoteId);
+  localStorage.setItem('nextInvoiceId', nextInvoiceId);
+}
+
+// === CLIENTES ===
+function renderClients(){
+  const table=document.getElementById('clientsTable');
+  const cartClient = document.getElementById('cartClientId');
+  table.innerHTML='<tr><th>ID</th><th>Nombre</th><th>Email</th><th>RUC</th><th>Dirección</th><th>Acciones</th></tr>';
+  cartClient.innerHTML='';
+  clients.forEach(c=>{
+    const row=table.insertRow();
+    row.insertCell(0).innerText=c.id;
+    row.insertCell(1).innerText=c.name;
+    row.insertCell(2).innerText=c.email;
+    row.insertCell(3).innerText=c.ruc||'';
+    row.insertCell(4).innerText=c.address||'';
+    row.insertCell(5).innerHTML=`<button onclick="editClient(${c.id})">Editar</button>
+    <button onclick="deleteClient(${c.id})">Eliminar</button>`;
+    const opt = document.createElement('option'); opt.value=c.id; opt.text=`${c.id} - ${c.name}`; cartClient.add(opt);
+  });
+}
+
+function createClientERP(){
+  const name = document.getElementById('erpClientName').value.trim();
+  const email = document.getElementById('erpClientEmail').value.trim();
+  const ruc = document.getElementById('erpClientRUC').value.trim();
+  const address = document.getElementById('erpClientAddress').value.trim();
+  if(!name||!email){alert('Nombre y Email requeridos'); return;}
+  clients.push({id:nextClientId++, name,email,ruc,address});
+  saveData(); renderClients();
+}
+
+function editClient(id){
+  const c = clients.find(x=>x.id===id);
+  const name = prompt("Nuevo nombre", c.name);
+  if(name){ c.name=name; saveData(); renderClients(); }
+}
+function deleteClient(id){ clients = clients.filter(c=>c.id!==id); saveData(); renderClients(); }
+
+// === PRODUCTOS ===
+function renderProducts(){
+  const table = document.getElementById('productsTable');
+  const cartProduct = document.getElementById('cartProductId');
+  table.innerHTML='<tr><th>ID</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Acciones</th></tr>';
+  cartProduct.innerHTML='';
+  products.forEach(p=>{
+    const row=table.insertRow();
+    row.insertCell(0).innerText=p.id;
+    row.insertCell(1).innerText=p.name;
+    row.insertCell(2).innerText=p.price.toFixed(2);
+    row.insertCell(3).innerText=p.stock;
+    row.insertCell(4).innerHTML=`<button onclick="editProduct(${p.id})">Editar</button>
+    <button onclick="deleteProduct(${p.id})">Eliminar</button>`;
+    const opt = document.createElement('option'); opt.value=p.id; opt.text=`${p.id} - ${p.name}`; cartProduct.add(opt);
+  });
+}
+
+function createProductERP(){
+  const name=document.getElementById('erpProductName').value.trim();
+  const price=parseFloat(document.getElementById('erpProductPrice').value)||0;
+  const stock=parseInt(document.getElementById('erpProductStock').value)||0;
+  if(!name){alert('Nombre requerido'); return;}
+  products.push({id:nextProductId++, name, price, stock});
+  saveData(); renderProducts();
+}
+
+function editProduct(id){
+  const p=products.find(x=>x.id===id);
+  const stock=parseInt(prompt('Nuevo stock', p.stock))||p.stock;
+  p.stock=stock; saveData(); renderProducts();
+}
+function deleteProduct(id){ products=products.filter(p=>p.id!==id); saveData(); renderProducts(); }
+
+// === CARRITO ===
+function addToCart(){
+  const clientId = parseInt(document.getElementById('cartClientId').value);
+  const productId = parseInt(document.getElementById('cartProductId').value);
+  const qty = parseInt(document.getElementById('cartQuantity').value);
+  if(!clientId || !productId || !qty){ alert("Selecciona cliente, producto y cantidad"); return; }
+  const product = products.find(p=>p.id===productId);
+  if(!product || product.stock < qty){ alert("Stock insuficiente"); return; }
+  const existing = cartItems.find(i=>i.productId===productId);
+  if(existing){ existing.quantity += qty; } else { cartItems.push({productId, name:product.name, price:product.price, quantity:qty}); }
+  updateCartTable();
+}
+
+function updateCartTable(){
+  const table = document.getElementById('cartTable');
+  table.innerHTML='<tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th><th>Acciones</th></tr>';
+  let total=0;
+  cartItems.forEach(i=>{
+    const row = table.insertRow();
+    row.insertCell(0).innerText=i.name;
+    row.insertCell(1).innerText=i.quantity;
+    row.insertCell(2).innerText=i.price.toFixed(2);
+    row.insertCell(3).innerText=(i.quantity*i.price).toFixed(2);
+    row.insertCell(4).innerHTML=`<button onclick="removeFromCart(${i.productId})">X</button>`;
+    total += i.quantity*i.price;
+  });
+  document.getElementById('cartTotal').innerText=total.toFixed(2);
+}
+
+function removeFromCart(productId){
+  cartItems = cartItems.filter(i=>i.productId!==productId);
+  updateCartTable();
+}
+
+// === COTIZACIONES ===
+function createCartQuote(){
+  const clientId = parseInt(document.getElementById('cartClientId').value);
+  if(!clientId || cartItems.length===0){ alert("Selecciona cliente y agrega productos"); return; }
+  const total = cartItems.reduce((sum,i)=>sum+i.price*i.quantity,0);
+  quotes.push({id:nextQuoteId++, clientId, items:[...cartItems], total});
+  cartItems = []; updateCartTable();
+  renderQuotes();
+  saveData();
+}
+
+function renderQuotes(){
+  const table = document.getElementById('quotesTable');
+  table.innerHTML='<tr><th>ID</th><th>Cliente</th><th>Total</th><th>Acciones</th></tr>';
+  quotes.forEach(q=>{
+    const c = clients.find(cl=>cl.id===q.clientId);
+    const row = table.insertRow();
+    row.insertCell(0).innerText = q.id;
+    row.insertCell(1).innerText = c ? c.name : q.clientId;
+    row.insertCell(2).innerText = q.total.toFixed(2);
+    row.insertCell(3).innerHTML = `<button onclick="convertQuoteToInvoice(${q.id})">Factura</button>
+                                   <button onclick="deleteQuote(${q.id})" style="color:red">Eliminar</button>`;
+  });
+}
+
+function deleteQuote(id){ quotes = quotes.filter(q=>q.id!==id); saveData(); renderQuotes(); }
+
+// === FACTURAS ===
+function convertQuoteToInvoice(id){
+  const q = quotes.find(x=>x.id===id);
+  if(!q) return;
+  for(let i of q.items){
+    const p = products.find(p=>p.id===i.productId);
+    if(p.stock < i.quantity){ alert("Stock insuficiente en "+p.name); return; }
+  }
+  q.items.forEach(i=>{ const p=products.find(p=>p.id===i.productId); p.stock-=i.quantity; });
+  const subtotal = q.total;
+  const iva = subtotal*IVA_RATE;
+  const total = subtotal+iva;
+  const invoice = {id:nextInvoiceId++, clientId:q.clientId, items:[...q.items], subtotal, iva, total};
+  invoices.push(invoice);
+  quotes = quotes.filter(x=>x.id!==id);
+  saveData();
+  renderInvoices(); renderProducts(); renderQuotes();
+}
+
+function renderInvoices(){
+  const table = document.getElementById('invoicesTable');
+  table.innerHTML='<tr><th>ID</th><th>Cliente</th><th>Total</th><th>Acciones</th></tr>';
+  invoices.forEach(inv=>{
+    const c = clients.find(cl=>cl.id===inv.clientId);
+    const row = table.insertRow();
+    row.insertCell(0).innerText = inv.id;
+    row.insertCell(1).innerText = c ? c.name : inv.clientId;
+    row.insertCell(2).innerText = inv.total.toFixed(2);
+    row.insertCell(3).innerHTML = `<button onclick="downloadInvoicePDF(${inv.id})">PDF</button>
+                                   <button onclick="deleteInvoice(${inv.id})" style="color:red">Eliminar</button>`;
+  });
+}
+
+function deleteInvoice(id){
+  const inv = invoices.find(i=>i.id===id);
+  if(!inv) return;
+  inv.items.forEach(i=>{ const p = products.find(p=>p.id===i.productId); if(p) p.stock+=i.quantity; });
+  invoices = invoices.filter(i=>i.id!==id);
+  saveData();
+  renderInvoices(); renderProducts();
+}
+
+// === PDF FACTURA MEJORADO ===
+function downloadInvoicePDF(id){
+  const { jsPDF } = window.jspdf;
+  const inv = invoices.find(i=>i.id===id);
+  const c = clients.find(cl=>cl.id===inv.clientId);
+  if(!inv || !c) return;
+  const doc = new jsPDF({unit:'pt',format:'a4'});
+  let y = 60;
+
+  // ENCABEZADO
+  doc.setFontSize(20);
+  doc.text("🧾 Mini ERP Factura", 40, y); y+=30;
+  doc.setFontSize(12);
+  doc.text(`Factura ID: ${inv.id}`, 40, y);
+  doc.text(`Cliente: ${c.name}`, 40, y+20);
+  doc.text(`Email: ${c.email}`, 40, y+40);
+  doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 400, y); y+=60;
+
+  // TABLA PRODUCTOS
+  doc.text("Producto", 40, y);
+  doc.text("Cantidad", 250, y);
+  doc.text("Precio Unit.", 350, y);
+  doc.text("Subtotal", 450, y);
+  y+=10;
+  doc.line(40, y, 550, y); y+=10;
+  inv.items.forEach(item=>{
+    doc.text(item.name, 40, y);
+    doc.text(item.quantity.toString(), 270, y, {align:'right'});
+    doc.text(`$${item.price.toFixed(2)}`, 370, y, {align:'right'});
+    doc.text(`$${(item.price*item.quantity).toFixed(2)}`, 470, y, {align:'right'});
+    y+=20;
+  });
+
+  // TOTALES
+  y+=10;
+  doc.line(40, y, 550, y); y+=20;
+  doc.text(`Subtotal: $${inv.subtotal.toFixed(2)}`, 400, y, {align:'right'}); y+=20;
+  doc.text(`IVA 15%: $${inv.iva.toFixed(2)}`, 400, y, {align:'right'}); y+=20;
+  doc.setFontSize(14);
+  doc.text(`TOTAL: $${inv.total.toFixed(2)}`, 400, y, {align:'right'});
+
+  doc.save(`Factura_${inv.id}.pdf`);
+}
+
+// Inicializar
+renderClients(); renderProducts(); renderQuotes(); renderInvoices();
+</script>
+</body>
+</html>
