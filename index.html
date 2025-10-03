@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title> COTIZACIONES PATO </title>
+<title>Mini ERP Completo</title>
 <style>
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -23,7 +23,7 @@ th { background: #f1f2f6; }
 </head>
 <body>
 <div class="container">
-<h1>Cotizaciones</h1>
+<h1>Mini ERP Completo</h1>
 
 <!-- CLIENTES -->
 <div class="section">
@@ -289,48 +289,27 @@ function downloadInvoicePDF(id){
   const inv = invoices.find(i=>i.id===id);
   const c = clients.find(cl=>cl.id===inv.clientId);
   if(!inv || !c) return;
-
   const doc = new jsPDF({unit:'pt',format:'a4'});
   let y = 60;
 
-  // FONDO ENCABEZADO
-  doc.setFillColor(9, 132, 227); // azul
-  doc.rect(0, 0, 595, 80, 'F');
-
-  // LOGO y TITULO
+  // ENCABEZADO
   doc.setFontSize(20);
-  doc.setTextColor(255,255,255);
-  doc.text("🧾 Cotización / Factura", 40, 50);
-  doc.setFontSize(12);
-  doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 400, 50);
-
-  y = 100;
-  doc.setTextColor(0,0,0);
+  doc.text("🧾 Mini ERP Factura", 40, y); y+=30;
   doc.setFontSize(12);
   doc.text(`Factura ID: ${inv.id}`, 40, y);
   doc.text(`Cliente: ${c.name}`, 40, y+20);
   doc.text(`Email: ${c.email}`, 40, y+40);
-  if(c.ruc) doc.text(`RUC/Cédula: ${c.ruc}`, 40, y+60);
-  if(c.address) doc.text(`Dirección: ${c.address}`, 40, y+80);
-  y += 100;
+  doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 400, y); y+=60;
 
-  // TABLA DE PRODUCTOS
-  doc.setFillColor(241, 242, 246); // color encabezado
-  doc.rect(40, y-15, 510, 20, 'F');
-  doc.setTextColor(0,0,0);
-  doc.text("Producto", 45, y);
+  // TABLA PRODUCTOS
+  doc.text("Producto", 40, y);
   doc.text("Cantidad", 250, y);
   doc.text("Precio Unit.", 350, y);
   doc.text("Subtotal", 450, y);
   y+=10;
-  doc.setLineWidth(0.5);
-  doc.line(40, y, 550, y);
-  y+=10;
-
-  inv.items.forEach((item,i)=>{
-    if(i%2===0){ doc.setFillColor(245,245,245); doc.rect(40, y-5, 510, 20, 'F'); }
-    doc.setTextColor(0,0,0);
-    doc.text(item.name, 45, y);
+  doc.line(40, y, 550, y); y+=10;
+  inv.items.forEach(item=>{
+    doc.text(item.name, 40, y);
     doc.text(item.quantity.toString(), 270, y, {align:'right'});
     doc.text(`$${item.price.toFixed(2)}`, 370, y, {align:'right'});
     doc.text(`$${(item.price*item.quantity).toFixed(2)}`, 470, y, {align:'right'});
@@ -339,18 +318,12 @@ function downloadInvoicePDF(id){
 
   // TOTALES
   y+=10;
-  doc.line(40, y, 550, y);
-  y+=20;
-  doc.setFontSize(12);
-  doc.text(`Subtotal: $${inv.subtotal.toFixed(2)}`, 400, y, {align:'right'});
-  y+=20;
-  doc.text(`IVA 15%: $${inv.iva.toFixed(2)}`, 400, y, {align:'right'});
-  y+=20;
+  doc.line(40, y, 550, y); y+=20;
+  doc.text(`Subtotal: $${inv.subtotal.toFixed(2)}`, 400, y, {align:'right'}); y+=20;
+  doc.text(`IVA 15%: $${inv.iva.toFixed(2)}`, 400, y, {align:'right'}); y+=20;
   doc.setFontSize(14);
-  doc.setTextColor(9,132,227);
   doc.text(`TOTAL: $${inv.total.toFixed(2)}`, 400, y, {align:'right'});
 
-  // GUARDAR PDF
   doc.save(`Factura_${inv.id}.pdf`);
 }
 
