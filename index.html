@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title> COTIZACIONES PATO </title>
+<title>COTIZACIONES PATO</title>
 <style>
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -32,7 +32,7 @@ th { background: #f1f2f6; }
 <input type="email" id="erpClientEmail" placeholder="Email Cliente">
 <input type="text" id="erpClientRUC" placeholder="RUC/CÉDULA">
 <input type="text" id="erpClientAddress" placeholder="Dirección">
-<button onclick="createClientERP()">Crear Cliente</button>
+<button id="btnCreateClient">Crear Cliente</button>
 
 <h3>Lista de Clientes</h3>
 <table id="clientsTable">
@@ -46,7 +46,7 @@ th { background: #f1f2f6; }
 <input type="text" id="erpProductName" placeholder="Nombre Producto">
 <input type="number" id="erpProductPrice" placeholder="Precio">
 <input type="number" id="erpProductStock" placeholder="Stock">
-<button onclick="createProductERP()">Crear Producto</button>
+<button id="btnCreateProduct">Crear Producto</button>
 
 <h3>Lista de Productos</h3>
 <table id="productsTable">
@@ -60,14 +60,16 @@ th { background: #f1f2f6; }
 <select id="cartClientId"></select>
 <select id="cartProductId"></select>
 <input type="number" id="cartQuantity" placeholder="Cantidad">
-<button onclick="addToCart()">Agregar al Carrito</button>
+<button id="btnAddToCart">Agregar al Carrito</button>
 
 <h3>Carrito</h3>
 <table id="cartTable">
 <tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th><th>Acciones</th></tr>
 </table>
-<p>Total: $<span id="cartTotal">0.00</span></p>
-<button onclick="createCartQuote()">Crear Cotización</button>
+<p>Subtotal: $<span id="cartSubtotal">0.00</span></p>
+<p>IVA (15%): $<span id="cartIva">0.00</span></p>
+<p><b>Total: $<span id="cartTotal">0.00</span></b></p>
+<button id="btnCreateQuote">Crear Cotización</button>
 
 <h3>Cotizaciones</h3>
 <table id="quotesTable">
@@ -83,7 +85,7 @@ th { background: #f1f2f6; }
 </table>
 </div>
 
-<!-- jsPDF para PDF -->
+<!-- jsPDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
@@ -137,12 +139,20 @@ function createClientERP(){
   if(!name||!email){alert('Nombre y Email requeridos'); return;}
   clients.push({id:nextClientId++, name,email,ruc,address});
   saveData(); renderClients();
+  document.getElementById('erpClientName').value="";
+  document.getElementById('erpClientEmail').value="";
+  document.getElementById('erpClientRUC').value="";
+  document.getElementById('erpClientAddress').value="";
 }
 
 function editClient(id){
   const c = clients.find(x=>x.id===id);
-  const name = prompt("Nuevo nombre", c.name);
-  if(name){ c.name=name; saveData(); renderClients(); }
+  if(!c) return;
+  c.name = prompt("Nuevo nombre", c.name) || c.name;
+  c.email = prompt("Nuevo email", c.email) || c.email;
+  c.ruc = prompt("Nuevo RUC/Cédula", c.ruc) || c.ruc;
+  c.address = prompt("Nueva dirección", c.address) || c.address;
+  saveData(); renderClients();
 }
 function deleteClient(id){ clients = clients.filter(c=>c.id!==id); saveData(); renderClients(); }
 
@@ -169,14 +179,21 @@ function createProductERP(){
   const price=parseFloat(document.getElementById('erpProductPrice').value)||0;
   const stock=parseInt(document.getElementById('erpProductStock').value)||0;
   if(!name){alert('Nombre requerido'); return;}
+  if(price<=0 || stock<0){ alert("Precio y stock inválidos"); return; }
   products.push({id:nextProductId++, name, price, stock});
   saveData(); renderProducts();
+  document.getElementById('erpProductName').value="";
+  document.getElementById('erpProductPrice').value="";
+  document.getElementById('erpProductStock').value="";
 }
 
 function editProduct(id){
   const p=products.find(x=>x.id===id);
-  const stock=parseInt(prompt('Nuevo stock', p.stock))||p.stock;
-  p.stock=stock; saveData(); renderProducts();
+  if(!p) return;
+  p.name = prompt("Nuevo nombre", p.name) || p.name;
+  p.price = parseFloat(prompt("Nuevo precio", p.price)) || p.price;
+  p.stock = parseInt(prompt("Nuevo stock", p.stock)) || p.stock;
+  saveData(); renderProducts();
 }
 function deleteProduct(id){ products=products.filter(p=>p.id!==id); saveData(); renderProducts(); }
 
@@ -196,7 +213,7 @@ function addToCart(){
 function updateCartTable(){
   const table = document.getElementById('cartTable');
   table.innerHTML='<tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th><th>Acciones</th></tr>';
-  let total=0;
+  let subtotal=0;
   cartItems.forEach(i=>{
     const row = table.insertRow();
     row.insertCell(0).innerText=i.name;
@@ -204,8 +221,12 @@ function updateCartTable(){
     row.insertCell(2).innerText=i.price.toFixed(2);
     row.insertCell(3).innerText=(i.quantity*i.price).toFixed(2);
     row.insertCell(4).innerHTML=`<button onclick="removeFromCart(${i.productId})">X</button>`;
-    total += i.quantity*i.price;
+    subtotal += i.quantity*i.price;
   });
+  const iva=subtotal*IVA_RATE;
+  const total=subtotal+iva;
+  document.getElementById('cartSubtotal').innerText=subtotal.toFixed(2);
+  document.getElementById('cartIva').innerText=iva.toFixed(2);
   document.getElementById('cartTotal').innerText=total.toFixed(2);
 }
 
@@ -283,7 +304,7 @@ function deleteInvoice(id){
   renderInvoices(); renderProducts();
 }
 
-// === PDF FACTURA MEJORADO ===
+// === PDF FACTURA ===
 function downloadInvoicePDF(id){
   const { jsPDF } = window.jspdf;
   const inv = invoices.find(i=>i.id===id);
@@ -293,14 +314,12 @@ function downloadInvoicePDF(id){
   const doc = new jsPDF({unit:'pt',format:'a4'});
   let y = 60;
 
-  // FONDO ENCABEZADO
-  doc.setFillColor(9, 132, 227); // azul
+  // ENCABEZADO
+  doc.setFillColor(9, 132, 227);
   doc.rect(0, 0, 595, 80, 'F');
-
-  // LOGO y TITULO
   doc.setFontSize(20);
   doc.setTextColor(255,255,255);
-  doc.text(" Proforma / Factura", 40, 50);
+  doc.text("Proforma / Factura", 40, 50);
   doc.setFontSize(12);
   doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 400, 50);
 
@@ -315,7 +334,7 @@ function downloadInvoicePDF(id){
   y += 100;
 
   // TABLA DE PRODUCTOS
-  doc.setFillColor(241, 242, 246); // color encabezado
+  doc.setFillColor(241, 242, 246);
   doc.rect(40, y-15, 510, 20, 'F');
   doc.setTextColor(0,0,0);
   doc.text("Producto", 45, y);
@@ -333,32 +352,36 @@ function downloadInvoicePDF(id){
     doc.text(item.name, 45, y);
     doc.text(item.quantity.toString(), 270, y, {align:'right'});
     doc.text(`$${item.price.toFixed(2)}`, 370, y, {align:'right'});
-    doc.text(`$${(item.price*item.quantity).toFixed(2)}`, 470, y, {align:'right'});
+    doc.text(`$${(item.price*item.quantity).toFixed(2)}`, 500, y, {align:'right'});
     y+=20;
   });
 
   // TOTALES
-  y+=10;
-  doc.line(40, y, 550, y);
   y+=20;
   doc.setFontSize(12);
-  doc.text(`Subtotal: $${inv.subtotal.toFixed(2)}`, 400, y, {align:'right'});
+  doc.text(`Subtotal: $${inv.subtotal.toFixed(2)}`, 500, y, {align:'right'});
   y+=20;
-  doc.text(`IVA 15%: $${inv.iva.toFixed(2)}`, 400, y, {align:'right'});
+  doc.text(`IVA (15%): $${inv.iva.toFixed(2)}`, 500, y, {align:'right'});
   y+=20;
   doc.setFontSize(14);
-  doc.setTextColor(9,132,227);
-  doc.text(`TOTAL: $${inv.total.toFixed(2)}`, 400, y, {align:'right'});
+  doc.text(`TOTAL: $${inv.total.toFixed(2)}`, 500, y, {align:'right'});
 
-  // GUARDAR PDF
   doc.save(`Factura_${inv.id}.pdf`);
 }
 
-// Inicializar
+// === EVENTOS ===
+document.getElementById("btnCreateClient").addEventListener("click", createClientERP);
+document.getElementById("btnCreateProduct").addEventListener("click", createProductERP);
+document.getElementById("btnAddToCart").addEventListener("click", addToCart);
+document.getElementById("btnCreateQuote").addEventListener("click", createCartQuote);
+
+// === INICIALIZAR ===
 renderClients(); renderProducts(); renderQuotes(); renderInvoices();
 </script>
+</div>
 </body>
 </html>
+
 
 
 
