@@ -23,7 +23,7 @@ th { background: #f1f2f6; }
 </head>
 <body>
 <div class="container">
-<h1>Bienvenido</h1>
+<h1>Cotizaciones</h1>
 
 <!-- CLIENTES -->
 <div class="section">
@@ -332,3 +332,4 @@ renderClients(); renderProducts(); renderQuotes(); renderInvoices();
 </script>
 </body>
 </html>
+
