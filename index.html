@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Sistema ERP con IVA por Producto - Firebase</title>
+<title>Sistema ERP con IVA por Producto</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 body { font-family: Arial, sans-serif; margin: 20px; background:#f9f9f9; }
@@ -20,295 +20,304 @@ button { margin:3px; padding:6px 12px; border:none; border-radius:5px; cursor:po
 <body>
 <div class="container">
 
-  <!-- CLIENTES -->
-  <div class="section">
-    <h2>Clientes</h2>
-    <input id="erpClientName" placeholder="Nombre">
-    <input id="erpClientEmail" placeholder="Email">
-    <input id="erpClientRUC" placeholder="RUC">
-    <input id="erpClientAddress" placeholder="Dirección">
-    <button id="btnCreateClient" class="btn">Crear Cliente</button>
-    <table id="erpClientsTable">
-      <thead><tr><th>Nombre</th><th>Email</th><th>RUC</th><th>Dirección</th><th>Acciones</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
+<!-- CLIENTES -->
+<div class="section">
+<h2>Clientes</h2>
+<input id="erpClientName" placeholder="Nombre">
+<input id="erpClientEmail" placeholder="Email">
+<input id="erpClientRUC" placeholder="RUC">
+<input id="erpClientAddress" placeholder="Dirección">
+<button id="btnCreateClient" class="btn">Crear Cliente</button>
+<table id="erpClientsTable">
+<thead><tr><th>Nombre</th><th>Email</th><th>RUC</th><th>Dirección</th><th>Acciones</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
 
-  <!-- PRODUCTOS -->
-  <div class="section">
-    <h2>Productos</h2>
-    <input id="erpProductName" placeholder="Nombre">
-    <input id="erpProductPrice" type="number" placeholder="Precio">
-    <input id="erpProductStock" type="number" placeholder="Stock">
-    <label><input type="checkbox" id="erpProductIva"> Aplica IVA</label>
-    <button id="btnCreateProduct" class="btn">Crear Producto</button>
-    <table id="erpProductsTable">
-      <thead><tr><th>Nombre</th><th>Precio</th><th>Stock</th><th>IVA</th><th>Acciones</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
+<!-- PRODUCTOS -->
+<div class="section">
+<h2>Productos</h2>
+<input id="erpProductName" placeholder="Nombre">
+<input id="erpProductPrice" type="number" placeholder="Precio">
+<input id="erpProductStock" type="number" placeholder="Stock">
+<label><input type="checkbox" id="erpProductIva"> Aplica IVA</label>
+<button id="btnCreateProduct" class="btn">Crear Producto</button>
+<table id="erpProductsTable">
+<thead><tr><th>Nombre</th><th>Precio</th><th>Stock</th><th>IVA</th><th>Acciones</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
 
-  <!-- CARRITO Y COTIZACIONES -->
-  <div class="section">
-    <h2>Cotización</h2>
-    <select id="cartClientSelect"></select>
-    <select id="cartProductSelect"></select>
-    <input id="cartQty" type="number" placeholder="Cantidad" value="1" min="1">
-    <button id="btnAddToCart" class="btn-secondary">Agregar al Carrito</button>
-    <table id="cartTable">
-      <thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Total</th><th></th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <p id="cartTotal"></p>
-    <button id="btnCreateQuote" class="btn">Guardar Cotización</button>
-  </div>
+<!-- CARRITO Y COTIZACIONES -->
+<div class="section">
+<h2>Cotización</h2>
+<select id="cartClientSelect"></select>
+<select id="cartProductSelect"></select>
+<input id="cartQty" type="number" placeholder="Cantidad" value="1" min="1">
+<button id="btnAddToCart" class="btn-secondary">Agregar al Carrito</button>
+<table id="cartTable">
+<thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Total</th><th></th></tr></thead>
+<tbody></tbody>
+</table>
+<p id="cartTotal"></p>
+<button id="btnCreateQuote" class="btn">Guardar Cotización</button>
+</div>
 
-  <div class="section">
-    <h2>Cotizaciones Guardadas</h2>
-    <table id="erpQuotesTable">
-      <thead><tr><th>ID</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Acciones</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
+<div class="section">
+<h2>Cotizaciones Guardadas</h2>
+<table id="erpQuotesTable">
+<thead><tr><th>ID</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Acciones</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
 
-  <!-- FACTURAS -->
-  <div class="section">
-    <h2>Facturas</h2>
-    <table id="erpInvoicesTable">
-      <thead><tr><th>ID</th><th>Cliente</th><th>Subtotal</th><th>IVA</th><th>Total</th><th>Acciones</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
+<!-- FACTURAS -->
+<div class="section">
+<h2>Facturas</h2>
+<table id="erpInvoicesTable">
+<thead><tr><th>ID</th><th>Cliente</th><th>Subtotal</th><th>IVA</th><th>Total</th><th>Acciones</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
 
 </div>
 
-<!-- FIREBASE -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAI0wiXb_tLuJ808a7yPxffnFIPoJdZcDk",
-  authDomain: "martin-57cf1.firebaseapp.com",
-  projectId: "martin-57cf1",
-  storageBucket: "martin-57cf1.appspot.com",
-  messagingSenderId: "1015561896951",
-  appId: "1:1015561896951:web:2a7f6efd96d12c8bce24f2"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-window.db = db;
-window.collection = collection;
-window.addDoc = addDoc;
-window.getDocs = getDocs;
-window.doc = doc;
-window.deleteDoc = deleteDoc;
-window.updateDoc = updateDoc;
-</script>
-
-<!-- ERP SCRIPT -->
 <script>
-let clients = [];
-let products = [];
-let quotes = [];
-let invoices = [];
+let clients = JSON.parse(localStorage.getItem("erp_clients")) || [];
+let products = JSON.parse(localStorage.getItem("erp_products")) || [];
+let quotes = JSON.parse(localStorage.getItem("erp_quotes")) || [];
+let invoices = JSON.parse(localStorage.getItem("erp_invoices")) || [];
 let cart = [];
+let nextId = parseInt(localStorage.getItem("erp_nextId")) || 1;
 
-// === CLIENTES ===
-async function loadClients(){
-  const snapshot = await getDocs(collection(db, 'clientes'));
-  clients = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  renderClients();
+function saveData(){
+  localStorage.setItem("erp_clients", JSON.stringify(clients));
+  localStorage.setItem("erp_products", JSON.stringify(products));
+  localStorage.setItem("erp_quotes", JSON.stringify(quotes));
+  localStorage.setItem("erp_invoices", JSON.stringify(invoices));
+  localStorage.setItem("erp_nextId", nextId);
 }
 
-async function createClientERP(){
-  const name=document.getElementById('erpClientName').value.trim();
-  const email=document.getElementById('erpClientEmail').value.trim();
-  const ruc=document.getElementById('erpClientRUC').value.trim();
-  const address=document.getElementById('erpClientAddress').value.trim();
-  if(!name){ alert('Ingrese nombre'); return; }
-
-  await addDoc(collection(db,'clientes'),{name,email,ruc,address});
-  document.getElementById('erpClientName').value='';
-  document.getElementById('erpClientEmail').value='';
-  document.getElementById('erpClientRUC').value='';
-  document.getElementById('erpClientAddress').value='';
-
-  loadClients();
-}
-
-async function deleteClient(id){
-  await deleteDoc(doc(db,'clientes',id));
-  loadClients();
-}
-
+/* === CLIENTES === */
 function renderClients(){
-  const tbody=document.querySelector('#erpClientsTable tbody');
-  tbody.innerHTML='';
+  const tbody = document.querySelector("#erpClientsTable tbody");
+  tbody.innerHTML="";
   clients.forEach(c=>{
     tbody.innerHTML+=`<tr><td>${c.name}</td><td>${c.email}</td><td>${c.ruc}</td><td>${c.address}</td>
-      <td><button class='btn' onclick='editClientFirebase("${c.id}")'>Editar</button>
-          <button class='btn-danger' onclick='deleteClient("${c.id}")'>Eliminar</button></td></tr>`;
+      <td><button class='btn' onclick='editClient(${c.id})'>Editar</button>
+          <button class='btn-danger' onclick='deleteClient(${c.id})'>Eliminar</button></td></tr>`;
   });
-  const sel=document.getElementById('cartClientSelect');
-  sel.innerHTML='';
-  clients.forEach(c=>{ sel.innerHTML+=`<option value='${c.id}'>${c.name}</option>`; });
+  const sel = document.getElementById("cartClientSelect");
+  sel.innerHTML="";
+  clients.forEach(c=>{ sel.innerHTML+=`<option value="${c.id}">${c.name}</option>`; });
+}
+function createClientERP(){
+  const name=document.getElementById("erpClientName").value.trim();
+  const email=document.getElementById("erpClientEmail").value.trim();
+  const ruc=document.getElementById("erpClientRUC").value.trim();
+  const address=document.getElementById("erpClientAddress").value.trim();
+  if(!name){alert("Ingrese nombre");return;}
+  clients.push({id:nextId++, name,email,ruc,address});
+  saveData(); renderClients();
+  document.getElementById("erpClientName").value="";
+  document.getElementById("erpClientEmail").value="";
+  document.getElementById("erpClientRUC").value="";
+  document.getElementById("erpClientAddress").value="";
+}
+function editClient(id){
+  const c=clients.find(x=>x.id===id);
+  c.name=prompt("Nuevo nombre",c.name)||c.name;
+  c.email=prompt("Nuevo email",c.email)||c.email;
+  c.ruc=prompt("Nuevo RUC",c.ruc)||c.ruc;
+  c.address=prompt("Nueva dirección",c.address)||c.address;
+  saveData(); renderClients();
+}
+function deleteClient(id){
+  clients=clients.filter(c=>c.id!==id);
+  saveData(); renderClients();
 }
 
-async function editClientFirebase(id){
-  const c = clients.find(x=>x.id===id);
-  const name=prompt('Nuevo nombre',c.name)||c.name;
-  const email=prompt('Nuevo email',c.email)||c.email;
-  const ruc=prompt('Nuevo RUC',c.ruc)||c.ruc;
-  const address=prompt('Nueva dirección',c.address)||c.address;
-  await updateDoc(doc(db,'clientes',id),{name,email,ruc,address});
-  loadClients();
-}
-
-// === PRODUCTOS ===
-async function loadProducts(){
-  const snapshot = await getDocs(collection(db, 'productos'));
-  products = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  renderProducts();
-}
-
-async function createProductERP(){
-  const name=document.getElementById('erpProductName').value.trim();
-  const price=parseFloat(document.getElementById('erpProductPrice').value);
-  const stock=parseInt(document.getElementById('erpProductStock').value);
-  const applyIva=document.getElementById('erpProductIva').checked;
-  if(!name||price<=0||stock<0){alert('Datos inválidos');return;}
-
-  await addDoc(collection(db,'productos'),{name,price,stock,applyIva});
-  document.getElementById('erpProductName').value='';
-  document.getElementById('erpProductPrice').value='';
-  document.getElementById('erpProductStock').value='';
-  document.getElementById('erpProductIva').checked=false;
-
-  loadProducts();
-}
-
-async function deleteProduct(id){
-  await deleteDoc(doc(db,'productos',id));
-  loadProducts();
-}
-
-async function editProductFirebase(id){
-  const p = products.find(x=>x.id===id);
-  const name=prompt('Nuevo nombre',p.name)||p.name;
-  const price=parseFloat(prompt('Nuevo precio',p.price))||p.price;
-  const stock=parseInt(prompt('Nuevo stock',p.stock))||p.stock;
-  const applyIva=confirm('¿Aplica IVA? Aceptar=Sí, Cancelar=No');
-  await updateDoc(doc(db,'productos',id),{name,price,stock,applyIva});
-  loadProducts();
-}
-
+/* === PRODUCTOS === */
 function renderProducts(){
-  const tbody=document.querySelector('#erpProductsTable tbody');
-  tbody.innerHTML='';
+  const tbody=document.querySelector("#erpProductsTable tbody");
+  tbody.innerHTML="";
   products.forEach(p=>{
-    tbody.innerHTML+=`<tr><td>${p.name}</td><td>${p.price}</td><td>${p.stock}</td><td>${p.applyIva?'Sí':'No'}</td>
-      <td><button class='btn' onclick='editProductFirebase("${p.id}")'>Editar</button>
-          <button class='btn-danger' onclick='deleteProduct("${p.id}")'>Eliminar</button></td></tr>`;
+    tbody.innerHTML+=`<tr><td>${p.name}</td><td>${p.price}</td><td>${p.stock}</td><td>${p.applyIva?"Sí":"No"}</td>
+      <td><button class='btn' onclick='editProduct(${p.id})'>Editar</button>
+          <button class='btn-danger' onclick='deleteProduct(${p.id})'>Eliminar</button></td></tr>`;
   });
-  const sel=document.getElementById('cartProductSelect');
-  sel.innerHTML='';
-  products.forEach(p=>{ sel.innerHTML+=`<option value='${p.id}'>${p.name}</option>`; });
+  const sel=document.getElementById("cartProductSelect");
+  sel.innerHTML="";
+  products.forEach(p=>{ sel.innerHTML+=`<option value="${p.id}">${p.name}</option>`; });
+}
+function createProductERP(){
+  const name=document.getElementById("erpProductName").value.trim();
+  const price=parseFloat(document.getElementById("erpProductPrice").value);
+  const stock=parseInt(document.getElementById("erpProductStock").value);
+  const applyIva=document.getElementById("erpProductIva").checked;
+  if(!name||price<=0||stock<0){alert("Datos inválidos");return;}
+  products.push({id:nextId++,name,price,stock,applyIva});
+  saveData(); renderProducts();
+  document.getElementById("erpProductName").value="";
+  document.getElementById("erpProductPrice").value="";
+  document.getElementById("erpProductStock").value="";
+  document.getElementById("erpProductIva").checked=false;
+}
+function editProduct(id){
+  const p=products.find(x=>x.id===id);
+  p.name=prompt("Nuevo nombre",p.name)||p.name;
+  p.price=parseFloat(prompt("Nuevo precio",p.price))||p.price;
+  p.stock=parseInt(prompt("Nuevo stock",p.stock))||p.stock;
+  p.applyIva=confirm("¿Aplica IVA? Aceptar=Sí, Cancelar=No");
+  saveData(); renderProducts();
+}
+function deleteProduct(id){
+  products=products.filter(p=>p.id!==id);
+  saveData(); renderProducts();
 }
 
-// === CARRITO, COTIZACIONES, FACTURAS === (igual que tu código anterior, usando variables locales)
-function renderCart(){ const tbody=document.querySelector('#cartTable tbody'); tbody.innerHTML=''; let subtotal=0,subtotalIva=0; cart.forEach((it,i)=>{ const line=it.price*it.qty; subtotal+=line; if(it.applyIva){subtotalIva+=line;} tbody.innerHTML+=`<tr><td>${it.name}</td><td>${it.qty}</td><td>${it.price}</td><td>${line.toFixed(2)}</td><td><button class='btn-danger' onclick='removeCartItem(${i})'>X</button></td></tr>`; }); const iva=subtotalIva*0.15; const total=subtotal+iva; document.getElementById('cartTotal').innerText=`Subtotal: $${subtotal.toFixed(2)} | IVA: $${iva.toFixed(2)} | Total: $${total.toFixed(2)}`; }
-function addToCart(){ const prodId=parseInt(document.getElementById('cartProductSelect').value); const qty=parseInt(document.getElementById('cartQty').value); const p=products.find(p=>p.id===prodId); if(!p||qty<=0||qty>p.stock){alert('Cantidad inválida');return;} cart.push({productId:p.id,name:p.name,price:p.price,qty,applyIva:p.applyIva}); renderCart(); }
+/* === CARRITO === */
+function renderCart(){
+  const tbody=document.querySelector("#cartTable tbody");
+  tbody.innerHTML="";
+  let subtotal=0, subtotalIva=0;
+  cart.forEach((it,i)=>{
+    const line=it.price*it.qty;
+    subtotal+=line;
+    if(it.applyIva){ subtotalIva+=line; }
+    tbody.innerHTML+=`<tr><td>${it.name}</td><td>${it.qty}</td><td>${it.price}</td><td>${line.toFixed(2)}</td>
+      <td><button class='btn-danger' onclick='removeCartItem(${i})'>X</button></td></tr>`;
+  });
+  const iva=subtotalIva*0.15;
+  const total=subtotal+iva;
+  document.getElementById("cartTotal").innerText=`Subtotal: $${subtotal.toFixed(2)} | IVA: $${iva.toFixed(2)} | Total: $${total.toFixed(2)}`;
+}
+function addToCart(){
+  const prodId=parseInt(document.getElementById("cartProductSelect").value);
+  const qty=parseInt(document.getElementById("cartQty").value);
+  const p=products.find(p=>p.id===prodId);
+  if(!p||qty<=0||qty>p.stock){alert("Cantidad inválida");return;}
+  cart.push({productId:p.id,name:p.name,price:p.price,qty,applyIva:p.applyIva});
+  renderCart();
+}
 function removeCartItem(i){ cart.splice(i,1); renderCart(); }
 
-function renderQuotes(){ const tbody=document.querySelector('#erpQuotesTable tbody'); tbody.innerHTML=''; quotes.forEach(q=>{ const client=clients.find(c=>c.id===q.clientId); tbody.innerHTML+=`<tr><td>${q.id}</td><td>${client?client.name:'?'}</td><td>${q.items.map(it=>it.name+'('+it.qty+')').join(', ')}</td><td>${q.total.toFixed(2)}</td><td><button class='btn-secondary' onclick='convertToInvoice(${q.id})'>Facturar</button><button class='btn-danger' onclick='deleteQuote(${q.id})'>Eliminar</button></td></tr>`; }); }
-function createCartQuote(){ if(!cart.length){alert('Carrito vacío');return;} const clientId=parseInt(document.getElementById('cartClientSelect').value); let subtotal=0,subtotalIva=0; cart.forEach(it=>{ const line=it.price*it.qty; subtotal+=line; if(it.applyIva){subtotalIva+=line;} }); const iva=subtotalIva*0.15; const total=subtotal+iva; quotes.push({id:Date.now(),clientId,items:[...cart],subtotal,iva,total}); cart=[]; renderCart(); renderQuotes(); }
-function deleteQuote(id){ quotes=quotes.filter(q=>q.id!==id); renderQuotes(); }
-function convertToInvoice(id){ const q=quotes.find(q=>q.id===id); if(!q)return; q.items.forEach(it=>{ const p=products.find(p=>p.id===it.productId); if(p) p.stock-=it.qty; }); invoices.push({...q,date:new Date().toLocaleString()}); quotes=quotes.filter(x=>x.id!==id); renderQuotes(); renderInvoices(); renderProducts(); }
-
-function renderInvoices(){ const tbody=document.querySelector('#erpInvoicesTable tbody'); tbody.innerHTML=''; invoices.forEach(inv=>{ const client=clients.find(c=>c.id===inv.clientId); tbody.innerHTML+=`<tr><td>${inv.id}</td><td>${client?client.name:'?'}</td><td>${inv.subtotal.toFixed(2)}</td><td>${inv.iva.toFixed(2)}</td><td>${inv.total.toFixed(2)}</td><td><button class='btn' onclick='downloadInvoicePDF(${inv.id})'>PDF</button><button class='btn-danger' onclick='deleteInvoice(${inv.id})'>Eliminar</button></td></tr>`; }); }
-function deleteInvoice(id){ const inv=invoices.find(i=>i.id===id); if(inv){ inv.items.forEach(it=>{ const
-function deleteInvoice(id){
-  const inv = invoices.find(i => i.id === id);
-  if(inv){
-    // Devolver stock de los productos al eliminar factura
-    inv.items.forEach(it => {
-      const p = products.find(p => p.id === it.productId);
-      if(p) p.stock += it.qty;
-    });
-  }
-  invoices = invoices.filter(i => i.id !== id);
-  renderInvoices();
-  renderProducts();
+/* === COTIZACIONES === */
+function renderQuotes(){
+  const tbody=document.querySelector("#erpQuotesTable tbody");
+  tbody.innerHTML="";
+  quotes.forEach(q=>{
+    const client=clients.find(c=>c.id===q.clientId);
+    tbody.innerHTML+=`<tr><td>${q.id}</td><td>${client?client.name:"?"}</td>
+      <td>${q.items.map(it=>it.name+"("+it.qty+")").join(", ")}</td>
+      <td>${q.total.toFixed(2)}</td>
+      <td><button class='btn-secondary' onclick='convertToInvoice(${q.id})'>Facturar</button>
+          <button class='btn-danger' onclick='deleteQuote(${q.id})'>Eliminar</button></td></tr>`;
+  });
+}
+function createCartQuote(){
+  if(!cart.length){alert("Carrito vacío");return;}
+  const clientId=parseInt(document.getElementById("cartClientSelect").value);
+  let subtotal=0, subtotalIva=0;
+  cart.forEach(it=>{ const line=it.price*it.qty; subtotal+=line; if(it.applyIva){subtotalIva+=line;} });
+  const iva=subtotalIva*0.15; const total=subtotal+iva;
+  quotes.push({id:nextId++,clientId,items:[...cart],subtotal,iva,total});
+  cart=[]; renderCart(); saveData(); renderQuotes();
+}
+function deleteQuote(id){ quotes=quotes.filter(q=>q.id!==id); saveData(); renderQuotes(); }
+function convertToInvoice(id){
+  const q=quotes.find(q=>q.id===id);
+  if(!q)return;
+  q.items.forEach(it=>{
+    const p=products.find(p=>p.id===it.productId);
+    if(p) p.stock-=it.qty;
+  });
+  invoices.push({...q, date:new Date().toLocaleString()});
+  quotes=quotes.filter(x=>x.id!==id);
+  saveData(); renderQuotes(); renderInvoices(); renderProducts();
 }
 
-// === PDF MEJORADO ===
+/* === FACTURAS === */
+function renderInvoices(){
+  const tbody=document.querySelector("#erpInvoicesTable tbody");
+  tbody.innerHTML="";
+  invoices.forEach(inv=>{
+    const client=clients.find(c=>c.id===inv.clientId);
+    tbody.innerHTML+=`<tr><td>${inv.id}</td><td>${client?client.name:"?"}</td>
+      <td>${inv.subtotal.toFixed(2)}</td><td>${inv.iva.toFixed(2)}</td><td>${inv.total.toFixed(2)}</td>
+      <td><button class='btn' onclick='downloadInvoicePDF(${inv.id})'>PDF</button>
+          <button class='btn-danger' onclick='deleteInvoice(${inv.id})'>Eliminar</button></td></tr>`;
+  });
+}
+function deleteInvoice(id){
+  const inv=invoices.find(i=>i.id===id);
+  if(inv){ inv.items.forEach(it=>{
+    const p=products.find(p=>p.id===it.productId);
+    if(p) p.stock+=it.qty;
+  }); }
+  invoices=invoices.filter(i=>i.id!==id);
+  saveData(); renderInvoices(); renderProducts();
+}
+
+/* === PDF CORPORATIVO === */
 function downloadInvoicePDF(id){
   const inv = invoices.find(i => i.id === id);
   if(!inv) return;
-
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-  // ENCABEZADO
+  // LOGO y ENCABEZADO
   doc.setFillColor(25,118,210);
-  doc.rect(0,0,210,30,'F');
+  doc.rect(0,0,210,35,'F');
   doc.setTextColor(255,255,255);
   doc.setFontSize(22);
-  doc.text("FACTURA",105,20,{align:'center'});
-
-  // DATOS EMPRESA
-  doc.setFillColor(240,240,240);
-  doc.rect(20,35,170,20,'F');
-  doc.setTextColor(0,0,0);
-  doc.setFontSize(11);
-  doc.text("Mi Empresa S.A.",25,42);
-  doc.text("RUC: 9999999999",25,47);
-  doc.text("Dirección: Quito - Ecuador",25,52);
+  doc.text("Mi Empresa S.A.",105,15,{align:'center'});
+  doc.setFontSize(16);
+  doc.text("FACTURA",105,28,{align:'center'});
 
   // DATOS CLIENTE
   const client = clients.find(c => c.id === inv.clientId);
   doc.setFillColor(245,245,245);
-  doc.rect(20,60,170,25,'F');
+  doc.rect(20,40,170,30,'F');
+  doc.setTextColor(0,0,0);
   doc.setFontSize(11);
-  doc.text(`Cliente: ${client ? client.name : ""}`,25,70);
-  doc.text(`Email: ${client ? client.email : ""}`,25,76);
-  doc.text(`RUC: ${client ? client.ruc : ""}`,25,82);
-  doc.text(`Fecha: ${inv.date}`,140,70);
+  doc.text(`Cliente: ${client ? client.name : ""}`,25,48);
+  doc.text(`Email: ${client ? client.email : ""}`,25,55);
+  doc.text(`RUC: ${client ? client.ruc : ""}`,25,62);
+  doc.text(`Fecha: ${inv.date}`,140,48);
 
   // TABLA PRODUCTOS
-  let y = 90;
+  let y = 75;
   doc.setFillColor(200,200,200);
   doc.rect(20,y,170,8,'F');
   doc.setTextColor(0,0,0);
   doc.setFontSize(11);
   doc.text("Producto",25,y+6);
-  doc.text("Cantidad",105,y+6);
+  doc.text("Cant.",105,y+6);
   doc.text("Precio Unit.",135,y+6);
   doc.text("Subtotal",175,y+6);
-  y += 10;
+  y += 8;
   inv.items.forEach((it,index)=>{
-    if(index%2===0){ doc.setFillColor(245,245,245); doc.rect(20,y-6,170,8,'F'); }
-    doc.text(it.name,25,y);
-    doc.text(String(it.qty),105,y);
-    doc.text(it.price.toFixed(2),135,y);
-    doc.text((it.qty*it.price).toFixed(2),175,y);
+    if(index%2===0){ doc.setFillColor(245,245,245); doc.rect(20,y,170,8,'F'); }
+    doc.text(it.name,25,y+6);
+    doc.text(String(it.qty),105,y+6);
+    doc.text(it.price.toFixed(2),135,y+6);
+    doc.text((it.qty*it.price).toFixed(2),175,y+6);
     y += 8;
   });
 
-  // TOTALES
+  // TOTALES DESTACADOS
   y += 5;
-  doc.setFillColor(25,118,210);
+  doc.setFillColor(220,220,220);
   doc.rect(120,y,70,25,'F');
-  doc.setTextColor(255,255,255);
+  doc.setTextColor(0,0,0);
   doc.setFontSize(12);
   doc.text(`Subtotal: $${inv.subtotal.toFixed(2)}`,125,y+8);
   doc.text(`IVA: $${inv.iva.toFixed(2)}`,125,y+15);
   doc.setFontSize(14);
   doc.text(`TOTAL: $${inv.total.toFixed(2)}`,125,y+22);
 
-  // PIE
+  // PIE CORPORATIVO
   doc.setFontSize(10);
   doc.setTextColor(100,100,100);
   doc.text("Gracias por su compra",105,290,{align:'center'});
@@ -317,15 +326,14 @@ function downloadInvoicePDF(id){
   doc.save(`Factura_${inv.id}.pdf`);
 }
 
-// === EVENTOS ===
+/* === EVENTOS === */
 document.getElementById("btnCreateClient").addEventListener("click",createClientERP);
 document.getElementById("btnCreateProduct").addEventListener("click",createProductERP);
 document.getElementById("btnAddToCart").addEventListener("click",addToCart);
 document.getElementById("btnCreateQuote").addEventListener("click",createCartQuote);
 
-// === INIT ===
-loadClients();
-loadProducts();
+/* === INIT === */
+renderClients(); renderProducts(); renderQuotes(); renderInvoices();
 </script>
 </body>
 </html>
