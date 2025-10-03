@@ -82,244 +82,282 @@ th { background: #f1f2f6; }
 <tr><th>ID</th><th>Cliente</th><th>Total</th><th>Acciones</th></tr>
 </table>
 </div>
-</div>
 
 <!-- jsPDF para PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<!-- Firebase SDK -->
-<script type="module">
-  // Importar Firebase desde CDN
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+<script>
+// === VARIABLES GLOBALES ===
+let clients = JSON.parse(localStorage.getItem('clients'))||[];
+let products = JSON.parse(localStorage.getItem('products'))||[];
+let quotes = JSON.parse(localStorage.getItem('quotes'))||[];
+let invoices = JSON.parse(localStorage.getItem('invoices'))||[];
+let cartItems = [];
+let nextClientId = parseInt(localStorage.getItem('nextClientId'))||1;
+let nextProductId = parseInt(localStorage.getItem('nextProductId'))||1;
+let nextQuoteId = parseInt(localStorage.getItem('nextQuoteId'))||1;
+let nextInvoiceId = parseInt(localStorage.getItem('nextInvoiceId'))||1;
+const IVA_RATE = 0.15;
 
-  // Configuración de Firebase (TU PROYECTO)
-  const firebaseConfig = {
-    apiKey: "AIzaSyDSa5edzmz_yhvQni6lexhxNlUzc8AN3vA",
-    authDomain: "mini-erp-bd0ba.firebaseapp.com",
-    projectId: "mini-erp-bd0ba",
-    storageBucket: "mini-erp-bd0ba.firebasestorage.app",
-    messagingSenderId: "285846149373",
-    appId: "1:285846149373:web:d71b7d71b917a966d50694"
-  };
+function saveData(){
+  localStorage.setItem('clients', JSON.stringify(clients));
+  localStorage.setItem('products', JSON.stringify(products));
+  localStorage.setItem('quotes', JSON.stringify(quotes));
+  localStorage.setItem('invoices', JSON.stringify(invoices));
+  localStorage.setItem('nextClientId', nextClientId);
+  localStorage.setItem('nextProductId', nextProductId);
+  localStorage.setItem('nextQuoteId', nextQuoteId);
+  localStorage.setItem('nextInvoiceId', nextInvoiceId);
+}
 
-  // Inicializar Firebase
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+// === CLIENTES ===
+function renderClients(){
+  const table=document.getElementById('clientsTable');
+  const cartClient = document.getElementById('cartClientId');
+  table.innerHTML='<tr><th>ID</th><th>Nombre</th><th>Email</th><th>RUC</th><th>Dirección</th><th>Acciones</th></tr>';
+  cartClient.innerHTML='';
+  clients.forEach(c=>{
+    const row=table.insertRow();
+    row.insertCell(0).innerText=c.id;
+    row.insertCell(1).innerText=c.name;
+    row.insertCell(2).innerText=c.email;
+    row.insertCell(3).innerText=c.ruc||'';
+    row.insertCell(4).innerText=c.address||'';
+    row.insertCell(5).innerHTML=`<button onclick="editClient(${c.id})">Editar</button>
+    <button onclick="deleteClient(${c.id})">Eliminar</button>`;
+    const opt = document.createElement('option'); opt.value=c.id; opt.text=`${c.id} - ${c.name}`; cartClient.add(opt);
+  });
+}
 
-  // Variables globales
-  let clients = [];
-  let products = [];
-  let quotes = [];
-  let invoices = [];
-  let cartItems = [];
-  let nextQuoteId = 1;
-  let nextInvoiceId = 1;
-  const IVA_RATE = 0.15;
+function createClientERP(){
+  const name = document.getElementById('erpClientName').value.trim();
+  const email = document.getElementById('erpClientEmail').value.trim();
+  const ruc = document.getElementById('erpClientRUC').value.trim();
+  const address = document.getElementById('erpClientAddress').value.trim();
+  if(!name||!email){alert('Nombre y Email requeridos'); return;}
+  clients.push({id:nextClientId++, name,email,ruc,address});
+  saveData(); renderClients();
+}
 
-  // === CLIENTES ===
-  async function loadClients(){
-    clients = [];
-    const querySnapshot = await getDocs(collection(db, "clients"));
-    querySnapshot.forEach(docSnap => {
-      clients.push({ id: docSnap.id, ...docSnap.data() });
-    });
-    renderClients();
+function editClient(id){
+  const c = clients.find(x=>x.id===id);
+  const name = prompt("Nuevo nombre", c.name);
+  if(name){ c.name=name; saveData(); renderClients(); }
+}
+function deleteClient(id){ clients = clients.filter(c=>c.id!==id); saveData(); renderClients(); }
+
+// === PRODUCTOS ===
+function renderProducts(){
+  const table = document.getElementById('productsTable');
+  const cartProduct = document.getElementById('cartProductId');
+  table.innerHTML='<tr><th>ID</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Acciones</th></tr>';
+  cartProduct.innerHTML='';
+  products.forEach(p=>{
+    const row=table.insertRow();
+    row.insertCell(0).innerText=p.id;
+    row.insertCell(1).innerText=p.name;
+    row.insertCell(2).innerText=p.price.toFixed(2);
+    row.insertCell(3).innerText=p.stock;
+    row.insertCell(4).innerHTML=`<button onclick="editProduct(${p.id})">Editar</button>
+    <button onclick="deleteProduct(${p.id})">Eliminar</button>`;
+    const opt = document.createElement('option'); opt.value=p.id; opt.text=`${p.id} - ${p.name}`; cartProduct.add(opt);
+  });
+}
+
+function createProductERP(){
+  const name=document.getElementById('erpProductName').value.trim();
+  const price=parseFloat(document.getElementById('erpProductPrice').value)||0;
+  const stock=parseInt(document.getElementById('erpProductStock').value)||0;
+  if(!name){alert('Nombre requerido'); return;}
+  products.push({id:nextProductId++, name, price, stock});
+  saveData(); renderProducts();
+}
+
+function editProduct(id){
+  const p=products.find(x=>x.id===id);
+  const stock=parseInt(prompt('Nuevo stock', p.stock))||p.stock;
+  p.stock=stock; saveData(); renderProducts();
+}
+function deleteProduct(id){ products=products.filter(p=>p.id!==id); saveData(); renderProducts(); }
+
+// === CARRITO ===
+function addToCart(){
+  const clientId = parseInt(document.getElementById('cartClientId').value);
+  const productId = parseInt(document.getElementById('cartProductId').value);
+  const qty = parseInt(document.getElementById('cartQuantity').value);
+  if(!clientId || !productId || !qty){ alert("Selecciona cliente, producto y cantidad"); return; }
+  const product = products.find(p=>p.id===productId);
+  if(!product || product.stock < qty){ alert("Stock insuficiente"); return; }
+  const existing = cartItems.find(i=>i.productId===productId);
+  if(existing){ existing.quantity += qty; } else { cartItems.push({productId, name:product.name, price:product.price, quantity:qty}); }
+  updateCartTable();
+}
+
+function updateCartTable(){
+  const table = document.getElementById('cartTable');
+  table.innerHTML='<tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th><th>Acciones</th></tr>';
+  let total=0;
+  cartItems.forEach(i=>{
+    const row = table.insertRow();
+    row.insertCell(0).innerText=i.name;
+    row.insertCell(1).innerText=i.quantity;
+    row.insertCell(2).innerText=i.price.toFixed(2);
+    row.insertCell(3).innerText=(i.quantity*i.price).toFixed(2);
+    row.insertCell(4).innerHTML=`<button onclick="removeFromCart(${i.productId})">X</button>`;
+    total += i.quantity*i.price;
+  });
+  document.getElementById('cartTotal').innerText=total.toFixed(2);
+}
+
+function removeFromCart(productId){
+  cartItems = cartItems.filter(i=>i.productId!==productId);
+  updateCartTable();
+}
+
+// === COTIZACIONES ===
+function createCartQuote(){
+  const clientId = parseInt(document.getElementById('cartClientId').value);
+  if(!clientId || cartItems.length===0){ alert("Selecciona cliente y agrega productos"); return; }
+  const total = cartItems.reduce((sum,i)=>sum+i.price*i.quantity,0);
+  quotes.push({id:nextQuoteId++, clientId, items:[...cartItems], total});
+  cartItems = []; updateCartTable();
+  renderQuotes();
+  saveData();
+}
+
+function renderQuotes(){
+  const table = document.getElementById('quotesTable');
+  table.innerHTML='<tr><th>ID</th><th>Cliente</th><th>Total</th><th>Acciones</th></tr>';
+  quotes.forEach(q=>{
+    const c = clients.find(cl=>cl.id===q.clientId);
+    const row = table.insertRow();
+    row.insertCell(0).innerText = q.id;
+    row.insertCell(1).innerText = c ? c.name : q.clientId;
+    row.insertCell(2).innerText = q.total.toFixed(2);
+    row.insertCell(3).innerHTML = `<button onclick="convertQuoteToInvoice(${q.id})">Factura</button>
+                                   <button onclick="deleteQuote(${q.id})" style="color:red">Eliminar</button>`;
+  });
+}
+
+function deleteQuote(id){ quotes = quotes.filter(q=>q.id!==id); saveData(); renderQuotes(); }
+
+// === FACTURAS ===
+function convertQuoteToInvoice(id){
+  const q = quotes.find(x=>x.id===id);
+  if(!q) return;
+  for(let i of q.items){
+    const p = products.find(p=>p.id===i.productId);
+    if(p.stock < i.quantity){ alert("Stock insuficiente en "+p.name); return; }
   }
+  q.items.forEach(i=>{ const p=products.find(p=>p.id===i.productId); p.stock-=i.quantity; });
+  const subtotal = q.total;
+  const iva = subtotal*IVA_RATE;
+  const total = subtotal+iva;
+  const invoice = {id:nextInvoiceId++, clientId:q.clientId, items:[...q.items], subtotal, iva, total};
+  invoices.push(invoice);
+  quotes = quotes.filter(x=>x.id!==id);
+  saveData();
+  renderInvoices(); renderProducts(); renderQuotes();
+}
 
-  async function createClientERP(){
-    const name = document.getElementById('erpClientName').value.trim();
-    const email = document.getElementById('erpClientEmail').value.trim();
-    const ruc = document.getElementById('erpClientRUC').value.trim();
-    const address = document.getElementById('erpClientAddress').value.trim();
-    if(!name || !email){ alert("Nombre y Email requeridos"); return; }
-    await addDoc(collection(db, "clients"), { name, email, ruc, address });
-    loadClients();
-  }
+function renderInvoices(){
+  const table = document.getElementById('invoicesTable');
+  table.innerHTML='<tr><th>ID</th><th>Cliente</th><th>Total</th><th>Acciones</th></tr>';
+  invoices.forEach(inv=>{
+    const c = clients.find(cl=>cl.id===inv.clientId);
+    const row = table.insertRow();
+    row.insertCell(0).innerText = inv.id;
+    row.insertCell(1).innerText = c ? c.name : inv.clientId;
+    row.insertCell(2).innerText = inv.total.toFixed(2);
+    row.insertCell(3).innerHTML = `<button onclick="downloadInvoicePDF(${inv.id})">PDF</button>
+                                   <button onclick="deleteInvoice(${inv.id})" style="color:red">Eliminar</button>`;
+  });
+}
 
-  function renderClients(){
-    const table=document.getElementById('clientsTable');
-    const cartClient = document.getElementById('cartClientId');
-    table.innerHTML='<tr><th>ID</th><th>Nombre</th><th>Email</th><th>RUC</th><th>Dirección</th><th>Acciones</th></tr>';
-    cartClient.innerHTML='';
-    clients.forEach(c=>{
-      const row=table.insertRow();
-      row.insertCell(0).innerText=c.id;
-      row.insertCell(1).innerText=c.name;
-      row.insertCell(2).innerText=c.email;
-      row.insertCell(3).innerText=c.ruc||'';
-      row.insertCell(4).innerText=c.address||'';
-      row.insertCell(5).innerHTML=`<button onclick="deleteClient('${c.id}')">Eliminar</button>`;
-      const opt = document.createElement('option'); opt.value=c.id; opt.text=`${c.name}`; cartClient.add(opt);
-    });
-  }
+function deleteInvoice(id){
+  const inv = invoices.find(i=>i.id===id);
+  if(!inv) return;
+  inv.items.forEach(i=>{ const p = products.find(p=>p.id===i.productId); if(p) p.stock+=i.quantity; });
+  invoices = invoices.filter(i=>i.id!==id);
+  saveData();
+  renderInvoices(); renderProducts();
+}
 
-  async function deleteClient(id){
-    await deleteDoc(doc(db,"clients",id));
-    loadClients();
-  }
+// === PDF FACTURA MEJORADO ===
+function downloadInvoicePDF(id){
+  const { jsPDF } = window.jspdf;
+  const inv = invoices.find(i=>i.id===id);
+  const c = clients.find(cl=>cl.id===inv.clientId);
+  if(!inv || !c) return;
 
-  // === PRODUCTOS ===
-  async function loadProducts(){
-    products = [];
-    const querySnapshot = await getDocs(collection(db, "products"));
-    querySnapshot.forEach(docSnap=>{
-      products.push({id:docSnap.id, ...docSnap.data()});
-    });
-    renderProducts();
-  }
+  const doc = new jsPDF({unit:'pt',format:'a4'});
+  let y = 60;
 
-  async function createProductERP(){
-    const name=document.getElementById('erpProductName').value.trim();
-    const price=parseFloat(document.getElementById('erpProductPrice').value)||0;
-    const stock=parseInt(document.getElementById('erpProductStock').value)||0;
-    if(!name){alert('Nombre requerido'); return;}
-    await addDoc(collection(db,"products"),{name,price,stock});
-    loadProducts();
-  }
+  // FONDO ENCABEZADO
+  doc.setFillColor(9, 132, 227); // azul
+  doc.rect(0, 0, 595, 80, 'F');
 
-  function renderProducts(){
-    const table=document.getElementById('productsTable');
-    const cartProduct=document.getElementById('cartProductId');
-    table.innerHTML='<tr><th>ID</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Acciones</th></tr>';
-    cartProduct.innerHTML='';
-    products.forEach(p=>{
-      const row=table.insertRow();
-      row.insertCell(0).innerText=p.id;
-      row.insertCell(1).innerText=p.name;
-      row.insertCell(2).innerText=p.price.toFixed(2);
-      row.insertCell(3).innerText=p.stock;
-      row.insertCell(4).innerHTML=`<button onclick="deleteProduct('${p.id}')">Eliminar</button>`;
-      const opt=document.createElement('option'); opt.value=p.id; opt.text=`${p.name}`; cartProduct.add(opt);
-    });
-  }
+  // LOGO y TITULO
+  doc.setFontSize(20);
+  doc.setTextColor(255,255,255);
+  doc.text("🧾 Cotización / Factura", 40, 50);
+  doc.setFontSize(12);
+  doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 400, 50);
 
-  async function deleteProduct(id){
-    await deleteDoc(doc(db,"products",id));
-    loadProducts();
-  }
+  y = 100;
+  doc.setTextColor(0,0,0);
+  doc.setFontSize(12);
+  doc.text(`Factura ID: ${inv.id}`, 40, y);
+  doc.text(`Cliente: ${c.name}`, 40, y+20);
+  doc.text(`Email: ${c.email}`, 40, y+40);
+  if(c.ruc) doc.text(`RUC/Cédula: ${c.ruc}`, 40, y+60);
+  if(c.address) doc.text(`Dirección: ${c.address}`, 40, y+80);
+  y += 100;
 
-  // === CARRITO ===
-  window.addToCart = function(){
-    const clientId = document.getElementById('cartClientId').value;
-    const productId = document.getElementById('cartProductId').value;
-    const qty = parseInt(document.getElementById('cartQuantity').value);
-    if(!clientId || !productId || !qty){ alert("Selecciona cliente, producto y cantidad"); return; }
-    const product = products.find(p=>p.id===productId);
-    if(!product || product.stock < qty){ alert("Stock insuficiente"); return; }
-    const existing = cartItems.find(i=>i.productId===productId);
-    if(existing){ existing.quantity += qty; } else { cartItems.push({productId, name:product.name, price:product.price, quantity:qty}); }
-    updateCartTable();
-  }
+  // TABLA DE PRODUCTOS
+  doc.setFillColor(241, 242, 246); // color encabezado
+  doc.rect(40, y-15, 510, 20, 'F');
+  doc.setTextColor(0,0,0);
+  doc.text("Producto", 45, y);
+  doc.text("Cantidad", 250, y);
+  doc.text("Precio Unit.", 350, y);
+  doc.text("Subtotal", 450, y);
+  y+=10;
+  doc.setLineWidth(0.5);
+  doc.line(40, y, 550, y);
+  y+=10;
 
-  function updateCartTable(){
-    const table=document.getElementById('cartTable');
-    table.innerHTML='<tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th><th>Acciones</th></tr>';
-    let total=0;
-    cartItems.forEach(i=>{
-      const row=table.insertRow();
-      row.insertCell(0).innerText=i.name;
-      row.insertCell(1).innerText=i.quantity;
-      row.insertCell(2).innerText=i.price.toFixed(2);
-      row.insertCell(3).innerText=(i.quantity*i.price).toFixed(2);
-      row.insertCell(4).innerHTML=`<button onclick="removeFromCart('${i.productId}')">X</button>`;
-      total += i.quantity*i.price;
-    });
-    document.getElementById('cartTotal').innerText=total.toFixed(2);
-  }
-
-  window.removeFromCart = function(id){
-    cartItems=cartItems.filter(i=>i.productId!==id);
-    updateCartTable();
-  }
-
-  // === COTIZACIONES ===
-  window.createCartQuote = function(){
-    const clientId=document.getElementById('cartClientId').value;
-    if(!clientId || cartItems.length===0){ alert("Selecciona cliente y agrega productos"); return; }
-    const total=cartItems.reduce((s,i)=>s+i.price*i.quantity,0);
-    quotes.push({id:nextQuoteId++, clientId, items:[...cartItems], total});
-    cartItems=[]; updateCartTable(); renderQuotes();
-  }
-
-  function renderQuotes(){
-    const table=document.getElementById('quotesTable');
-    table.innerHTML='<tr><th>ID</th><th>Cliente</th><th>Total</th><th>Acciones</th></tr>';
-    quotes.forEach(q=>{
-      const c=clients.find(cl=>cl.id===q.clientId);
-      const row=table.insertRow();
-      row.insertCell(0).innerText=q.id;
-      row.insertCell(1).innerText=c?c.name:q.clientId;
-      row.insertCell(2).innerText=q.total.toFixed(2);
-      row.insertCell(3).innerHTML=`<button onclick="convertQuoteToInvoice(${q.id})">Factura</button>
-                                   <button onclick="deleteQuote(${q.id})">Eliminar</button>`;
-    });
-  }
-
-  window.deleteQuote=function(id){ quotes=quotes.filter(q=>q.id!==id); renderQuotes(); }
-
-  // === FACTURAS ===
-  window.convertQuoteToInvoice=function(id){
-    const q=quotes.find(x=>x.id===id); if(!q) return;
-    const subtotal=q.total;
-    const iva=subtotal*IVA_RATE;
-    const total=subtotal+iva;
-    const invoice={id:nextInvoiceId++, clientId:q.clientId, items:[...q.items], subtotal, iva, total};
-    invoices.push(invoice);
-    quotes=quotes.filter(x=>x.id!==id);
-    renderInvoices(); renderQuotes();
-  }
-
-  function renderInvoices(){
-    const table=document.getElementById('invoicesTable');
-    table.innerHTML='<tr><th>ID</th><th>Cliente</th><th>Total</th><th>Acciones</th></tr>';
-    invoices.forEach(inv=>{
-      const c=clients.find(cl=>cl.id===inv.clientId);
-      const row=table.insertRow();
-      row.insertCell(0).innerText=inv.id;
-      row.insertCell(1).innerText=c?c.name:inv.clientId;
-      row.insertCell(2).innerText=inv.total.toFixed(2);
-      row.insertCell(3).innerHTML=`<button onclick="downloadInvoicePDF(${inv.id})">PDF</button>`;
-    });
-  }
-
-  // === PDF FACTURA ===
-  window.downloadInvoicePDF=function(id){
-    const { jsPDF }=window.jspdf;
-    const inv=invoices.find(i=>i.id===id);
-    const c=clients.find(cl=>cl.id===inv.clientId);
-    if(!inv||!c) return;
-    const doc=new jsPDF({unit:'pt',format:'a4'});
-    let y=60;
-    doc.setFillColor(9,132,227); doc.rect(0,0,595,80,'F');
-    doc.setFontSize(20); doc.setTextColor(255,255,255); doc.text("Factura",40,50);
-    doc.setFontSize(12); doc.text(`Fecha: ${new Date().toLocaleDateString()}`,400,50);
-    y=100;
+  inv.items.forEach((item,i)=>{
+    if(i%2===0){ doc.setFillColor(245,245,245); doc.rect(40, y-5, 510, 20, 'F'); }
     doc.setTextColor(0,0,0);
-    doc.text(`Factura ID: ${inv.id}`,40,y);
-    doc.text(`Cliente: ${c.name}`,40,y+20);
-    doc.text(`Email: ${c.email}`,40,y+40);
-    y+=80;
-    doc.text("Producto",45,y); doc.text("Cantidad",250,y); doc.text("Precio",350,y); doc.text("Subtotal",450,y);
+    doc.text(item.name, 45, y);
+    doc.text(item.quantity.toString(), 270, y, {align:'right'});
+    doc.text(`$${item.price.toFixed(2)}`, 370, y, {align:'right'});
+    doc.text(`$${(item.price*item.quantity).toFixed(2)}`, 470, y, {align:'right'});
     y+=20;
-    inv.items.forEach(i=>{
-      doc.text(i.name,45,y);
-      doc.text(i.quantity.toString(),270,y);
-      doc.text(`$${i.price}`,370,y);
-      doc.text(`$${(i.price*i.quantity).toFixed(2)}`,470,y);
-      y+=20;
-    });
-    y+=20;
-    doc.text(`Subtotal: $${inv.subtotal.toFixed(2)}`,400,y); y+=20;
-    doc.text(`IVA: $${inv.iva.toFixed(2)}`,400,y); y+=20;
-    doc.setFontSize(14); doc.setTextColor(9,132,227);
-    doc.text(`TOTAL: $${inv.total.toFixed(2)}`,400,y);
-    doc.save(`Factura_${inv.id}.pdf`);
-  }
+  });
 
-  // Inicializar
-  loadClients(); loadProducts();
+  // TOTALES
+  y+=10;
+  doc.line(40, y, 550, y);
+  y+=20;
+  doc.setFontSize(12);
+  doc.text(`Subtotal: $${inv.subtotal.toFixed(2)}`, 400, y, {align:'right'});
+  y+=20;
+  doc.text(`IVA 15%: $${inv.iva.toFixed(2)}`, 400, y, {align:'right'});
+  y+=20;
+  doc.setFontSize(14);
+  doc.setTextColor(9,132,227);
+  doc.text(`TOTAL: $${inv.total.toFixed(2)}`, 400, y, {align:'right'});
+
+  // GUARDAR PDF
+  doc.save(`Factura_${inv.id}.pdf`);
+}
+
+// Inicializar
+renderClients(); renderProducts(); renderQuotes(); renderInvoices();
 </script>
 </body>
 </html>
+
 
