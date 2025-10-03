@@ -23,7 +23,7 @@ th { background: #f1f2f6; }
 </head>
 <body>
 <div class="container">
-<h1>Mini ERP Completo</h1>
+<h1>Bienvenido</h1>
 
 <!-- CLIENTES -->
 <div class="section">
