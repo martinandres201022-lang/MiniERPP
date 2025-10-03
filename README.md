@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Cotizaciones</title>
+<title>Mini ERP Completo</title>
 <style>
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -23,7 +23,7 @@ th { background: #f1f2f6; }
 </head>
 <body>
 <div class="container">
-<h1>Cotizaciones</h1>
+<h1>Mini ERP Completo</h1>
 
 <!-- CLIENTES -->
 <div class="section">
