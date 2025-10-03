@@ -83,23 +83,47 @@ button { margin:3px; padding:6px 12px; border:none; border-radius:5px; cursor:po
 </div>
 
 <script>
+(() => {
 let clients = JSON.parse(localStorage.getItem("erp_clients")) || [];
 let products = JSON.parse(localStorage.getItem("erp_products")) || [];
 let quotes = JSON.parse(localStorage.getItem("erp_quotes")) || [];
 let invoices = JSON.parse(localStorage.getItem("erp_invoices")) || [];
+let logs = JSON.parse(localStorage.getItem("erp_logs")) || [];
 let cart = [];
 let nextId = parseInt(localStorage.getItem("erp_nextId")) || 1;
 
+/* === UTILS === */
 function saveData(){
-  localStorage.setItem("erp_clients", JSON.stringify(clients));
-  localStorage.setItem("erp_products", JSON.stringify(products));
-  localStorage.setItem("erp_quotes", JSON.stringify(quotes));
-  localStorage.setItem("erp_invoices", JSON.stringify(invoices));
-  localStorage.setItem("erp_nextId", nextId);
+  try {
+    localStorage.setItem("erp_clients", JSON.stringify(clients));
+    localStorage.setItem("erp_products", JSON.stringify(products));
+    localStorage.setItem("erp_quotes", JSON.stringify(quotes));
+    localStorage.setItem("erp_invoices", JSON.stringify(invoices));
+    localStorage.setItem("erp_nextId", nextId);
+    localStorage.setItem("erp_logs", JSON.stringify(logs));
+  } catch(e){ alert("Error guardando datos: "+e); }
+}
+function showMessage(msg,color="#1976d2"){
+  const div = document.createElement("div");
+  div.textContent = msg;
+  div.style.position="fixed";
+  div.style.bottom="20px";
+  div.style.right="20px";
+  div.style.background=color;
+  div.style.color="#fff";
+  div.style.padding="10px";
+  div.style.borderRadius="6px";
+  div.style.boxShadow="0 2px 6px rgba(0,0,0,0.3)";
+  document.body.appendChild(div);
+  setTimeout(()=>div.remove(),2000);
+}
+function logAction(action,data){
+  logs.push({date:new Date().toLocaleString(),action,data});
 }
 
 /* === CLIENTES === */
 function renderClients(){
+  clients.sort((a,b)=>a.name.localeCompare(b.name));
   const tbody = document.querySelector("#erpClientsTable tbody");
   tbody.innerHTML="";
   clients.forEach(c=>{
@@ -116,29 +140,36 @@ function createClientERP(){
   const email=document.getElementById("erpClientEmail").value.trim();
   const ruc=document.getElementById("erpClientRUC").value.trim();
   const address=document.getElementById("erpClientAddress").value.trim();
-  if(!name){alert("Ingrese nombre");return;}
+  if(!name){alert("Ingrese nombre"); return;}
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){alert("Email inválido");return;}
+  if(ruc && ruc.length!==13){alert("RUC debe tener 13 dígitos");return;}
   clients.push({id:nextId++, name,email,ruc,address});
-  saveData(); renderClients();
+  saveData(); renderClients(); logAction("crear cliente",{name,email,ruc,address});
+  showMessage("Cliente creado exitosamente");
   document.getElementById("erpClientName").value="";
   document.getElementById("erpClientEmail").value="";
   document.getElementById("erpClientRUC").value="";
   document.getElementById("erpClientAddress").value="";
 }
-function editClient(id){
+window.editClient=function(id){
   const c=clients.find(x=>x.id===id);
   c.name=prompt("Nuevo nombre",c.name)||c.name;
   c.email=prompt("Nuevo email",c.email)||c.email;
   c.ruc=prompt("Nuevo RUC",c.ruc)||c.ruc;
   c.address=prompt("Nueva dirección",c.address)||c.address;
-  saveData(); renderClients();
+  saveData(); renderClients(); logAction("editar cliente",{id,c});
+  showMessage("Cliente editado","green");
 }
-function deleteClient(id){
+window.deleteClient=function(id){
+  if(!confirm("¿Seguro desea eliminar este cliente?")) return;
   clients=clients.filter(c=>c.id!==id);
-  saveData(); renderClients();
+  saveData(); renderClients(); logAction("eliminar cliente",{id});
+  showMessage("Cliente eliminado","red");
 }
 
 /* === PRODUCTOS === */
 function renderProducts(){
+  products.sort((a,b)=>a.name.localeCompare(b.name));
   const tbody=document.querySelector("#erpProductsTable tbody");
   tbody.innerHTML="";
   products.forEach(p=>{
@@ -157,23 +188,27 @@ function createProductERP(){
   const applyIva=document.getElementById("erpProductIva").checked;
   if(!name||price<=0||stock<0){alert("Datos inválidos");return;}
   products.push({id:nextId++,name,price,stock,applyIva});
-  saveData(); renderProducts();
+  saveData(); renderProducts(); logAction("crear producto",{name,price,stock,applyIva});
+  showMessage("Producto creado exitosamente");
   document.getElementById("erpProductName").value="";
   document.getElementById("erpProductPrice").value="";
   document.getElementById("erpProductStock").value="";
   document.getElementById("erpProductIva").checked=false;
 }
-function editProduct(id){
+window.editProduct=function(id){
   const p=products.find(x=>x.id===id);
   p.name=prompt("Nuevo nombre",p.name)||p.name;
   p.price=parseFloat(prompt("Nuevo precio",p.price))||p.price;
   p.stock=parseInt(prompt("Nuevo stock",p.stock))||p.stock;
   p.applyIva=confirm("¿Aplica IVA? Aceptar=Sí, Cancelar=No");
-  saveData(); renderProducts();
+  saveData(); renderProducts(); logAction("editar producto",{id,p});
+  showMessage("Producto editado","green");
 }
-function deleteProduct(id){
+window.deleteProduct=function(id){
+  if(!confirm("¿Seguro desea eliminar este producto?")) return;
   products=products.filter(p=>p.id!==id);
-  saveData(); renderProducts();
+  saveData(); renderProducts(); logAction("eliminar producto",{id});
+  showMessage("Producto eliminado","red");
 }
 
 /* === CARRITO === */
@@ -196,14 +231,16 @@ function addToCart(){
   const prodId=parseInt(document.getElementById("cartProductSelect").value);
   const qty=parseInt(document.getElementById("cartQty").value);
   const p=products.find(p=>p.id===prodId);
-  if(!p||qty<=0||qty>p.stock){alert("Cantidad inválida");return;}
+  if(!p||qty<=0){alert("Cantidad inválida");return;}
+  if(qty>p.stock){alert(`Solo hay ${p.stock} unidades disponibles`); return;}
   cart.push({productId:p.id,name:p.name,price:p.price,qty,applyIva:p.applyIva});
-  renderCart();
+  renderCart(); logAction("agregar carrito",{productId:p.id,qty});
 }
-function removeCartItem(i){ cart.splice(i,1); renderCart(); }
+window.removeCartItem=function(i){ cart.splice(i,1); renderCart(); }
 
 /* === COTIZACIONES === */
 function renderQuotes(){
+  quotes.sort((a,b)=>b.id - a.id);
   const tbody=document.querySelector("#erpQuotesTable tbody");
   tbody.innerHTML="";
   quotes.forEach(q=>{
@@ -222,23 +259,30 @@ function createCartQuote(){
   cart.forEach(it=>{ const line=it.price*it.qty; subtotal+=line; if(it.applyIva){subtotalIva+=line;} });
   const iva=subtotalIva*0.15; const total=subtotal+iva;
   quotes.push({id:nextId++,clientId,items:[...cart],subtotal,iva,total});
-  cart=[]; renderCart(); saveData(); renderQuotes();
+  logAction("crear cotizacion",{clientId,items:[...cart],subtotal,iva,total});
+  cart=[]; renderCart(); saveData(); renderQuotes(); showMessage("Cotización creada","green");
 }
-function deleteQuote(id){ quotes=quotes.filter(q=>q.id!==id); saveData(); renderQuotes(); }
-function convertToInvoice(id){
+window.deleteQuote=function(id){ if(confirm("Eliminar cotización?")) { quotes=quotes.filter(q=>q.id!==id); saveData(); renderQuotes(); logAction("eliminar cotizacion",{id}); showMessage("Cotización eliminada","red");} }
+window.convertToInvoice=function(id){
   const q=quotes.find(q=>q.id===id);
-  if(!q)return;
-  q.items.forEach(it=>{
+  if(!q) return;
+  for(const it of q.items){
     const p=products.find(p=>p.id===it.productId);
-    if(p) p.stock-=it.qty;
-  });
-  invoices.push({...q, date:new Date().toLocaleString()});
+    if(p){
+      if(p.stock - it.qty <0){ alert(`No hay stock suficiente para ${p.name}`); return;}
+      p.stock-=it.qty;
+    }
+  }
+  invoices.push({...q,date:new Date().toLocaleString()});
   quotes=quotes.filter(x=>x.id!==id);
   saveData(); renderQuotes(); renderInvoices(); renderProducts();
+  logAction("convertir a factura",{id});
+  showMessage("Cotización facturada","green");
 }
 
 /* === FACTURAS === */
 function renderInvoices(){
+  invoices.sort((a,b)=>b.id - a.id);
   const tbody=document.querySelector("#erpInvoicesTable tbody");
   tbody.innerHTML="";
   invoices.forEach(inv=>{
@@ -249,18 +293,18 @@ function renderInvoices(){
           <button class='btn-danger' onclick='deleteInvoice(${inv.id})'>Eliminar</button></td></tr>`;
   });
 }
-function deleteInvoice(id){
+window.deleteInvoice=function(id){
+  if(!confirm("Eliminar factura?")) return;
   const inv=invoices.find(i=>i.id===id);
-  if(inv){ inv.items.forEach(it=>{
-    const p=products.find(p=>p.id===it.productId);
-    if(p) p.stock+=it.qty;
-  }); }
+  if(inv){ inv.items.forEach(it=>{ const p=products.find(p=>p.id===it.productId); if(p) p.stock+=it.qty; }); }
   invoices=invoices.filter(i=>i.id!==id);
   saveData(); renderInvoices(); renderProducts();
+  logAction("eliminar factura",{id});
+  showMessage("Factura eliminada","red");
 }
 
 /* === PDF CORPORATIVO === */
-function downloadInvoicePDF(id){
+window.downloadInvoicePDF=function(id){
   const inv = invoices.find(i => i.id === id);
   if(!inv) return;
   const { jsPDF } = window.jspdf;
@@ -334,6 +378,8 @@ document.getElementById("btnCreateQuote").addEventListener("click",createCartQuo
 
 /* === INIT === */
 renderClients(); renderProducts(); renderQuotes(); renderInvoices();
+
+})();
 </script>
 </body>
 </html>
