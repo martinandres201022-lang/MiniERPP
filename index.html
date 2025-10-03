@@ -1,21 +1,21 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Sistema ERP con IVA por Producto</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background:#f9f9f9; }
-    h2 { color: #333; }
-    .section { background:#fff; padding:15px; margin-bottom:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
-    table { width:100%; border-collapse: collapse; margin-top:10px; }
-    table, th, td { border:1px solid #ccc; }
-    th, td { padding:8px; text-align:left; }
-    button { margin:3px; padding:6px 12px; border:none; border-radius:5px; cursor:pointer; }
-    .btn { background:#1976d2; color:#fff; }
-    .btn-danger { background:#d32f2f; color:#fff; }
-    .btn-secondary { background:#388e3c; color:#fff; }
-  </style>
+<meta charset="UTF-8">
+<title>Sistema ERP con IVA por Producto</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; background:#f9f9f9; }
+h2 { color: #333; }
+.section { background:#fff; padding:15px; margin-bottom:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+table { width:100%; border-collapse: collapse; margin-top:10px; }
+table, th, td { border:1px solid #ccc; }
+th, td { padding:8px; text-align:left; }
+button { margin:3px; padding:6px 12px; border:none; border-radius:5px; cursor:pointer; }
+.btn { background:#1976d2; color:#fff; }
+.btn-danger { background:#d32f2f; color:#fff; }
+.btn-secondary { background:#388e3c; color:#fff; }
+</style>
 </head>
 <body>
 <div class="container">
@@ -79,6 +79,7 @@
       <tbody></tbody>
     </table>
   </div>
+
 </div>
 
 <script>
@@ -227,7 +228,6 @@ function deleteQuote(id){ quotes=quotes.filter(q=>q.id!==id); saveData(); render
 function convertToInvoice(id){
   const q=quotes.find(q=>q.id===id);
   if(!q)return;
-  // descontar stock
   q.items.forEach(it=>{
     const p=products.find(p=>p.id===it.productId);
     if(p) p.stock-=it.qty;
@@ -258,27 +258,78 @@ function deleteInvoice(id){
   invoices=invoices.filter(i=>i.id!==id);
   saveData(); renderInvoices(); renderProducts();
 }
+
+/* === PDF MEJORADO === */
 function downloadInvoicePDF(id){
-  const inv=invoices.find(i=>i.id===id);
-  if(!inv)return;
-  const {jsPDF}=window.jspdf; const doc=new jsPDF();
-  doc.setFontSize(16); doc.setTextColor(25,118,210);
-  doc.text("FACTURA",105,20,null,null,"center");
-  doc.setFontSize(12); doc.setTextColor(0,0,0);
-  const client=clients.find(c=>c.id===inv.clientId);
-  doc.text(`Cliente: ${client?client.name:""}`,20,40);
-  doc.text(`Fecha: ${inv.date}`,20,50);
-  let y=70;
-  doc.text("Producto",20,y); doc.text("Cant",100,y); doc.text("Precio",130,y); doc.text("Total",170,y);
-  y+=10;
-  inv.items.forEach(it=>{
-    doc.text(it.name,20,y); doc.text(String(it.qty),100,y); doc.text(it.price.toFixed(2),130,y);
-    doc.text((it.qty*it.price).toFixed(2),170,y); y+=10;
+  const inv = invoices.find(i => i.id === id);
+  if(!inv) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  // ENCABEZADO
+  doc.setFillColor(25,118,210);
+  doc.rect(0,0,210,30,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(22);
+  doc.text("FACTURA",105,20,{align:'center'});
+
+  // DATOS EMPRESA
+  doc.setFillColor(240,240,240);
+  doc.rect(20,35,170,20,'F');
+  doc.setTextColor(0,0,0);
+  doc.setFontSize(11);
+  doc.text("Mi Empresa S.A.",25,42);
+  doc.text("RUC: 9999999999",25,47);
+  doc.text("Dirección: Quito - Ecuador",25,52);
+
+  // DATOS CLIENTE
+  const client = clients.find(c => c.id === inv.clientId);
+  doc.setFillColor(245,245,245);
+  doc.rect(20,60,170,25,'F');
+  doc.setFontSize(11);
+  doc.text(`Cliente: ${client ? client.name : ""}`,25,70);
+  doc.text(`Email: ${client ? client.email : ""}`,25,76);
+  doc.text(`RUC: ${client ? client.ruc : ""}`,25,82);
+  doc.text(`Fecha: ${inv.date}`,140,70);
+
+  // TABLA PRODUCTOS
+  let y = 90;
+  doc.setFillColor(200,200,200);
+  doc.rect(20,y,170,8,'F');
+  doc.setTextColor(0,0,0);
+  doc.setFontSize(11);
+  doc.text("Producto",25,y+6);
+  doc.text("Cantidad",105,y+6);
+  doc.text("Precio Unit.",135,y+6);
+  doc.text("Subtotal",175,y+6);
+  y += 10;
+  inv.items.forEach((it,index)=>{
+    if(index%2===0){ doc.setFillColor(245,245,245); doc.rect(20,y-6,170,8,'F'); }
+    doc.text(it.name,25,y);
+    doc.text(String(it.qty),105,y);
+    doc.text(it.price.toFixed(2),135,y);
+    doc.text((it.qty*it.price).toFixed(2),175,y);
+    y += 8;
   });
-  y+=10;
-  doc.text(`Subtotal: $${inv.subtotal.toFixed(2)}`,150,y); y+=10;
-  doc.text(`IVA: $${inv.iva.toFixed(2)}`,150,y); y+=10;
-  doc.setFontSize(14); doc.text(`TOTAL: $${inv.total.toFixed(2)}`,150,y);
+
+  // TOTALES
+  y += 5;
+  doc.setFillColor(25,118,210);
+  doc.rect(120,y,70,25,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(12);
+  doc.text(`Subtotal: $${inv.subtotal.toFixed(2)}`,125,y+8);
+  doc.text(`IVA: $${inv.iva.toFixed(2)}`,125,y+15);
+  doc.setFontSize(14);
+  doc.text(`TOTAL: $${inv.total.toFixed(2)}`,125,y+22);
+
+  // PIE
+  doc.setFontSize(10);
+  doc.setTextColor(100,100,100);
+  doc.text("Gracias por su compra",105,290,{align:'center'});
+  doc.text("Este documento no tiene validez tributaria",105,295,{align:'center'});
+
   doc.save(`Factura_${inv.id}.pdf`);
 }
 
@@ -293,6 +344,7 @@ renderClients(); renderProducts(); renderQuotes(); renderInvoices();
 </script>
 </body>
 </html>
+
 
 
 
